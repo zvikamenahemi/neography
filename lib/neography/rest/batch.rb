@@ -2,13 +2,20 @@ module Neography
   class Rest
     module Batch
       include Neography::Rest::Helpers
-    
+
       def batch(*args)
         do_batch(*args)
       end
 
       def batch_no_streaming(*args)
         do_batch_no_streaming(*args)
+      end
+
+      def cypher_batch(operations)
+        @connection.post("/batch",
+          headers: json_content_type,
+          body: compute_cypher_batch(operations).to_json
+        )
       end
 
       private
@@ -29,6 +36,16 @@ module Neography
           batch << {:id => i }.merge(get_batch(c))
         end
         {:body => batch.to_json, :headers => json_content_type}
+      end
+
+      def compute_cypher_batch(operations)
+        body = []
+
+        operations.each_with_index do |operation, i|
+          body << { id: i, method: 'POST', to: 'cypher', body: operation }
+        end
+
+        body
       end
 
       def get_batch(args)
@@ -83,7 +100,7 @@ module Neography
           }
         end
       end
-      
+
       def batch_create_or_fail_unique_node(index, key, value, properties = {})
         post "/index/node/%{index}?uniqueness=%{function}" %  {:index => index, :function => 'create_or_fail'} do
           {
@@ -254,11 +271,11 @@ module Neography
       end
 
       # Spatial
-      
+
       def batch_get_spatial
         get "/ext/SpatialPlugin"
       end
-    
+
       def batch_add_point_layer(layer, lat = nil, lon = nil)
          post "/ext/SpatialPlugin/graphdb/addSimplePointLayer" do
           {
@@ -270,7 +287,7 @@ module Neography
       end
 
       def batch_add_editable_layer(layer, format = "WKT", node_property_name = "wkt")
-        post "/ext/SpatialPlugin/graphdb/addEditableLayer" do 
+        post "/ext/SpatialPlugin/graphdb/addEditableLayer" do
           {
               :layer => layer,
               :format => format,
@@ -288,16 +305,16 @@ module Neography
       end
 
       def batch_add_geometry_to_layer(layer, geometry)
-        post "/ext/SpatialPlugin/graphdb/addGeometryWKTToLayer" do 
+        post "/ext/SpatialPlugin/graphdb/addGeometryWKTToLayer" do
           {
               :layer => layer,
               :geometry => geometry
             }
         end
       end
-    
+
       def batch_edit_geometry_from_layer(layer, geometry, node)
-        post "/ext/SpatialPlugin/graphdb/updateGeometryFromWKT" do 
+        post "/ext/SpatialPlugin/graphdb/updateGeometryFromWKT" do
           {
               :layer => layer,
               :geometry => geometry,
@@ -305,18 +322,18 @@ module Neography
             }
         end
       end
-    
+
       def batch_add_node_to_layer(layer, node)
-        post "/ext/SpatialPlugin/graphdb/addNodeToLayer" do 
+        post "/ext/SpatialPlugin/graphdb/addNodeToLayer" do
           {
               :layer => layer,
               :node => get_id(node)
             }
         end
       end
-    
+
       def batch_find_geometries_in_bbox(layer, minx, maxx, miny, maxy)
-        post "/ext/SpatialPlugin/graphdb/findGeometriesInBBox" do 
+        post "/ext/SpatialPlugin/graphdb/findGeometriesInBBox" do
           {
               :layer => layer,
               :minx => minx,
@@ -326,9 +343,9 @@ module Neography
             }
         end
       end
-    
+
       def batch_find_geometries_within_distance(layer, pointx, pointy, distance)
-        post "/ext/SpatialPlugin/graphdb/findGeometriesWithinDistance" do 
+        post "/ext/SpatialPlugin/graphdb/findGeometriesWithinDistance" do
           {
               :layer => layer,
               :pointX => pointx,
@@ -337,7 +354,7 @@ module Neography
             }
         end
       end
-      
+
       def batch_create_spatial_index(name, type, lat, lon)
         post "/index/node" do
           {
